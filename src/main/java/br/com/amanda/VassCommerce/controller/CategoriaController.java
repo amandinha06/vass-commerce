@@ -2,9 +2,12 @@ package br.com.amanda.VassCommerce.controller;
 
 import br.com.amanda.VassCommerce.model.Categoria;
 import br.com.amanda.VassCommerce.model.Produto;
+import br.com.amanda.VassCommerce.model.ProdutoModel;
 import br.com.amanda.VassCommerce.service.CategoriaService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,15 +17,15 @@ import java.util.List;
 @RestController
 public class CategoriaController {
 
-    private CategoriaService categoriaService;
-    private ProdutoController produtoController;
+    private final CategoriaService categoriaService;
+    private final ProdutoModel produtoModel;
 
     public CategoriaController(
             CategoriaService categoriaService,
-            ProdutoController produtoController) {
+            @Qualifier("produtoModelSql") ProdutoModel produtoModel) {
 
         this.categoriaService = categoriaService;
-        this.produtoController = produtoController;
+        this.produtoModel = produtoModel;
     }
 
     @GetMapping("/categoria")
@@ -50,8 +53,11 @@ public class CategoriaController {
 
         List<Produto> encontrados = new ArrayList<>();
 
-        for (Produto produto : produtoController.getProdutos()) {
-            if (produto.getCategoria().getId() == idcategoria) {
+        List <Produto> produtos = produtoModel.buscar(null, null, null);
+
+        for (Produto produto : produtos) {
+            if (produto.getCategoria() != null
+                    && produto.getCategoria().getId() == idcategoria) {
                 encontrados.add(produto);
             }
         }

@@ -1,76 +1,66 @@
 package br.com.amanda.VassCommerce.controller;
 
-import br.com.amanda.VassCommerce.model.Categoria;
+import br.com.amanda.VassCommerce.dto.ProdutoCreateRequest;
+import br.com.amanda.VassCommerce.dto.ProdutoMapper;
+import br.com.amanda.VassCommerce.dto.ProdutoResponse;
+import br.com.amanda.VassCommerce.model.ProdutoModel;
 import br.com.amanda.VassCommerce.model.Produto;
-import br.com.amanda.VassCommerce.service.CategoriaService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
-import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.net.URI;
 import java.util.List;
 
 @RestController
+@RequestMapping(value = "/produto", produces = "application/json")
 public class ProdutoController {
 
-    private List<Produto> produtos = new ArrayList<>();
+    private final ProdutoModel model;
 
-    private CategoriaService categoriaService;
-
-    public ProdutoController(CategoriaService categoriaService) {
-
-        this.categoriaService = categoriaService;
-
-        List<Categoria> categorias = categoriaService.getCategorias();
-
-        Categoria terror = categorias.get(0);
-        Categoria romance = categorias.get(1);
-
-        Produto livroTerror = new Produto(
-                "Livro de Terror",
-                "Assustador",
-                "aa.com.br",
-                39.90,
-                terror
-        );
-
-        adicionarIdCategoriaProduto(livroTerror);
-
-        Produto livroRomance = new Produto(
-                "Livro de Romance",
-                "Amor",
-                "bb.com.br",
-                29.90,
-                romance
-        );
-
-        adicionarIdCategoriaProduto(livroRomance);
+    public ProdutoController(
+            @Qualifier("produtoModelSql") ProdutoModel model){
+        this.model = model;
     }
 
-    public List<Produto> getProdutos() {
-        return produtos;
+    @PostMapping(consumes = "application/json")
+    public ResponseEntity<ProdutoResponse> criar(
+            @Valid @RequestBody ProdutoCreateRequest body
+    ){
+        Produto criado = model.criar(body);
+
+        URI location = URI.create("/produto/" + criado.getId());
+
+        return ResponseEntity
+                .created(location)
+                .body(ProdutoMapper.toResponse(criado));
     }
 
-    private void adicionarIdCategoriaProduto(Produto produto) {
-        produto.setId(produtos.size() + 1);
-        produtos.add(produto);
+    @GetMapping("/{id}")
+    public ResponseEntity<ProdutoResponse> obterPorId(
+            @PathVariable Long id
+    ){
+        return model.obterPorId(id)
+                .map(produto ->
+                        ResponseEntity.ok(ProdutoMapper.toResponse(produto)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/produto/{id}")
-    public List<Produto> listarProdutoId(@PathVariable int id) {
+    @GetMapping
+    public ResponseEntity<List<ProdutoResponse>> buscar(
+            @RequestParam(required = false) String nome,
+            @RequestParam(required = false) BigDecimal valorMinimo,
+            @RequestParam(required = false) BigDecimal valorMaximo){
 
-        Produto encontrado = null;
+        List<Produto> produtos =
+                model.buscar(nome, valorMinimo, valorMaximo);
 
-        for (Produto produto : produtos) {
-            if (id == produto.getId()) {
-                encontrado = produto;
-            }
-        }
+        List<ProdutoResponse> respostas = produtos.stream()
+                .map(ProdutoMapper::toResponse)
+                .toList();
 
-        if (encontrado == null) {
-            return List.of();
-        }
-
-        return List.of(encontrado);
+        return ResponseEntity.ok(respostas);
     }
 }
